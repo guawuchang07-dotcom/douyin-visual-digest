@@ -20,7 +20,12 @@ if (Test-Path -LiteralPath $Target) {
 }
 
 New-Item -ItemType Directory -Force -Path $Target | Out-Null
-Get-ChildItem -Force -LiteralPath $Source | Copy-Item -Destination $Target -Recurse -Force
+$excludedDirectories = @('.runtime', 'outputs', 'node_modules')
+Get-ChildItem -Force -LiteralPath $Source | Where-Object {
+    $_.Name -notin $excludedDirectories -and
+    $_.Name -ne '.env' -and
+    (-not $_.Name.StartsWith('.env.') -or $_.Name -eq '.env.example')
+} | Copy-Item -Destination $Target -Recurse -Force
 
 Write-Output "INSTALL_STATUS=ready"
 Write-Output "SKILL_PATH=$Target"

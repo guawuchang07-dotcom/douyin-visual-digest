@@ -2,6 +2,7 @@
     [string]$InputText,
     [switch]$FromClipboard,
     [string]$Transcript,
+    [string]$MediaFile,
     [string]$AnalysisFile,
     [string]$OutDir,
     [string]$EnvFile,
@@ -72,11 +73,14 @@ if ($FromClipboard) {
     $InputText = Get-Clipboard -Raw
 }
 
-Enable-NodeSystemProxy
+if (-not $TranscriptOnly) {
+    Enable-NodeSystemProxy
+}
 
 $ArgsList = @($Cli, "--image-mode", $ImageMode, "--model-name", $ModelName)
 if (-not [string]::IsNullOrWhiteSpace($InputText)) { $ArgsList += @("--input", $InputText) }
 if (-not [string]::IsNullOrWhiteSpace($Transcript)) { $ArgsList += @("--transcript", $Transcript) }
+if (-not [string]::IsNullOrWhiteSpace($MediaFile)) { $ArgsList += @("--media-file", $MediaFile) }
 if (-not [string]::IsNullOrWhiteSpace($AnalysisFile)) { $ArgsList += @("--analysis-file", $AnalysisFile) }
 if (-not [string]::IsNullOrWhiteSpace($OutDir)) { $ArgsList += @("--out-dir", $OutDir) }
 if (-not [string]::IsNullOrWhiteSpace($EnvFile)) { $ArgsList += @("--env-file", $EnvFile) }

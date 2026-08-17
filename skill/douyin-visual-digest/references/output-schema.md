@@ -5,6 +5,11 @@
 ```json
 {
   "version": 2,
+  "meta": {
+    "sourceMode": "audio-asr | page-chapters | provided-media | provided-transcript",
+    "sourceDetail": "具体获取路径",
+    "sourceUrl": "视频地址"
+  },
   "title": "视频主题",
   "plainLanguage": {
     "overview": "这段视频解决什么问题，核心结论是什么",
@@ -48,4 +53,4 @@
 - `visualDirection` 不计入图片正文字数，只描述适合主题的版式、物件、场景、流程或层级关系。
 - 不提供图片数量或多图分镜字段。
 
-原始转写始终单独保存在 `transcript.txt`，解释稿和视觉摘要不能替代逐字稿。
+来源文本始终单独保存在 `transcript.txt`。只有 `sourceMode=audio-asr`、`provided-media` 或 `provided-transcript` 时才能称为转写；`page-chapters` 只能称为页面章节摘要。解释稿和视觉摘要不能替代逐字稿。

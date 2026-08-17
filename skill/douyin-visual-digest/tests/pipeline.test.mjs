@@ -220,6 +220,7 @@ test("transcript-only mode stops before analysis and image configuration", async
     encoding: "utf8",
   });
   assert.match(stdout, /PIPELINE_STAGE=transcript-only/);
+  assert.match(stdout, /SOURCE_MODE=provided-transcript/);
   assert.ok((await stat(path.join(output, "transcript.txt"))).size > 100);
   await assert.rejects(stat(path.join(output, "digest.json")));
 });

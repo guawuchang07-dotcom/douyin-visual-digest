@@ -24,8 +24,35 @@ if (-not [Environment]::Is64BitOperatingSystem) {
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     throw "找不到 Node.js。请先安装 Node.js 18 或更高版本：https://nodejs.org/"
 }
-if (-not (Test-Path -LiteralPath $Dyt)) {
-    throw "缺少 vendor\dyt.exe。请确认下载的是完整 GitHub 仓库，而不是单个文件。"
+
+$browserCandidates = @(
+    $env:DOUYIN_BROWSER_PATH,
+    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    "C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+if (-not $browserCandidates) {
+    throw "找不到 Microsoft Edge 或 Google Chrome。浏览器用于专用临时会话获取抖音视频，不读取个人 Cookie。"
+}
+
+$playwrightCore = Join-Path $Root "node_modules\playwright-core"
+if ($Force -or -not (Test-Path -LiteralPath $playwrightCore)) {
+    $npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    if (-not $npm) { throw "找不到 npm.cmd，无法安装浏览器获取依赖。" }
+    Write-Output "正在安装浏览器获取依赖..."
+    Push-Location $Root
+    try {
+        $previousPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        & $npm.Source install --omit=dev --no-audit --no-fund 2>&1 | ForEach-Object { Write-Output "$_" }
+        $npmExit = $LASTEXITCODE
+        $ErrorActionPreference = $previousPreference
+        if ($npmExit -ne 0) { throw "npm 依赖安装失败，退出码：$npmExit" }
+    } finally {
+        $ErrorActionPreference = "Stop"
+        Pop-Location
+    }
 }
 
 if (-not $SkipFfmpeg -and -not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
@@ -71,7 +98,9 @@ if (-not $WhisperCli) { throw "whisper.cpp 下载完成，但没有找到 whispe
 if (-not $modelInfo -or $modelInfo.Length -lt 10MB) { throw "Whisper 模型文件无效或下载不完整：$ModelPath" }
 
 Write-Output "SETUP_STATUS=ready"
-Write-Output "DYT=$Dyt"
+Write-Output "BROWSER=$($browserCandidates[0])"
+Write-Output "PLAYWRIGHT_CORE=$playwrightCore"
+if (Test-Path -LiteralPath $Dyt) { Write-Output "DYT=$Dyt (legacy fallback)" }
 Write-Output "WHISPER=$($WhisperCli.FullName)"
 Write-Output "MODEL=$ModelPath"
 if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { Write-Output "FFMPEG=ready" } else { Write-Output "FFMPEG=missing" }

@@ -15,6 +15,7 @@ function parseArgs(argv) {
   const result = {
     input: "",
     transcript: "",
+    mediaFile: "",
     analysisFile: "",
     outDir: "",
     envFile: "",
@@ -30,6 +31,7 @@ function parseArgs(argv) {
   const fields = new Map([
     ["--input", "input"],
     ["--transcript", "transcript"],
+    ["--media-file", "mediaFile"],
     ["--analysis-file", "analysisFile"],
     ["--out-dir", "outDir"],
     ["--env-file", "envFile"],
@@ -65,6 +67,7 @@ function printHelp() {
 
 用法：
   node scripts/douyin-visual-digest.mjs --input <抖音链接或分享文本>
+  node scripts/douyin-visual-digest.mjs --media-file <本地视频或音频>
   node scripts/douyin-visual-digest.mjs --transcript <转写文件> --analysis-file <结构化解释 JSON>
   node scripts/douyin-visual-digest.mjs --test-image-api
   node scripts/douyin-visual-digest.mjs --test-text-api
@@ -73,6 +76,7 @@ function printHelp() {
   --out-dir <目录>          指定本次输出目录
   --env-file <文件>        指定 .env 文件
   --analysis-file <文件>   使用 Codex 或文本模型提供的解释 JSON
+  --media-file <文件>      直接转写本地视频或音频
   --image-mode <模式>      api 或 none；默认 api，只生成一张知识图
   --model-name <模型>      tiny 或 base；默认 base
   --title <标题>           覆盖自动标题
@@ -519,19 +523,33 @@ async function transcribeDouyin(input, runDir, modelName, config) {
   const args = [
     "-NoProfile", "-ExecutionPolicy", "Bypass",
     "-File", config.transcriberScript,
-    "-InputText", input,
     "-OutDir", runDir,
     "-ModelName", modelName,
   ];
-  if (config.douyinToolRoot) args.push("-ToolRoot", config.douyinToolRoot);
-  await runCommand("powershell.exe", args);
+  if (input?.mediaFile) args.push("-MediaPath", input.mediaFile);
+  else args.push("-InputText", input?.text || "");
+  const result = await runCommand("powershell.exe", args);
   const candidates = (await readdir(runDir))
     .filter((name) => !before.has(name) && /^douyin-transcript-.+\.txt$/i.test(name))
     .sort();
   if (!candidates.length) throw new Error("转写脚本执行完成，但没有找到新转写文件。");
   const target = path.join(runDir, "transcript.txt");
   await rename(path.join(runDir, candidates.at(-1)), target);
-  return target;
+  const markers = {};
+  for (const line of result.stdout.split(/\r?\n/)) {
+    const match = line.match(/^([A-Z_]+)=(.*)$/);
+    if (match) markers[match[1]] = match[2].trim();
+  }
+  return {
+    transcriptPath: target,
+    source: {
+      mode: markers.SOURCE_MODE || (input?.mediaFile ? "provided-media" : "audio-asr"),
+      detail: markers.SOURCE_DETAIL || "",
+      url: markers.SOURCE_URL || extractDouyinUrl(input?.text),
+      title: markers.SOURCE_TITLE || "",
+      warning: markers.SOURCE_WARNING || "",
+    },
+  };
 }
 
 function stamp() {
@@ -605,8 +623,8 @@ export async function runPipeline(options, env = process.env) {
   const config = resolveConfig(env);
   if (options.testImageApi) return testImageApi(config, options.outDir);
   if (options.testTextApi) return testTextApi(config);
-  if (!options.input && !options.transcript) {
-    throw new Error("请提供 --input 抖音链接/分享文本，或 --transcript 转写文件。");
+  if (!options.input && !options.transcript && !options.mediaFile) {
+    throw new Error("请提供 --input 抖音链接/分享文本、--media-file 本地媒体，或 --transcript 转写文件。");
   }
 
   const runDir = path.resolve(options.outDir || path.join(rootDir, "outputs", `douyin-digest-${stamp()}`));
@@ -614,21 +632,27 @@ export async function runPipeline(options, env = process.env) {
   await mkdir(imageDir, { recursive: true });
 
   let transcriptPath;
+  let source = { mode: "provided-transcript", detail: "", url: "", title: "", warning: "" };
   if (options.transcript) {
     const sourcePath = path.resolve(options.transcript);
     if (!existsSync(sourcePath)) throw new Error(`转写文件不存在：${sourcePath}`);
     transcriptPath = path.join(runDir, "transcript.txt");
     await writeFile(transcriptPath, `${cleanTranscript(await readFile(sourcePath, "utf8"))}\n`, "utf8");
   } else {
-    transcriptPath = await transcribeDouyin(options.input, runDir, options.modelName, config);
+    const transcribed = await transcribeDouyin({ text: options.input, mediaFile: options.mediaFile }, runDir, options.modelName, config);
+    transcriptPath = transcribed.transcriptPath;
+    source = transcribed.source;
   }
   const transcript = cleanTranscript(await readFile(transcriptPath, "utf8"));
   await writeFile(transcriptPath, `${transcript}\n`, "utf8");
   if (options.transcriptOnly) {
     console.log(`OUTPUT_DIR=${runDir}`);
     console.log(`TRANSCRIPT=${transcriptPath}`);
+    console.log(`SOURCE_MODE=${source.mode}`);
+    console.log(`SOURCE_DETAIL=${source.detail}`);
+    if (source.warning) console.log(`SOURCE_WARNING=${source.warning}`);
     console.log("PIPELINE_STAGE=transcript-only");
-    return { runDir, transcriptPath };
+    return { runDir, transcriptPath, source };
   }
 
   const fallback = analyzeLocally(transcript, options.title);
@@ -677,7 +701,11 @@ export async function runPipeline(options, env = process.env) {
   digest.meta = {
     analysisMode,
     imageMode: actualImageMode,
-    sourceUrl: extractDouyinUrl(options.input),
+    sourceMode: source.mode,
+    sourceDetail: source.detail,
+    sourceUrl: source.url || extractDouyinUrl(options.input),
+    sourceTitle: source.title,
+    sourceWarning: source.warning,
     generatedAt: new Date().toISOString(),
     imageModel: useImageApi ? config.imageModel : "",
     imageTextHan: digest.visualSummary.hanCount,
@@ -693,6 +721,9 @@ export async function runPipeline(options, env = process.env) {
   console.log(`INFOGRAPHIC=${outputs.infographicPath}`);
   console.log(`IMAGE_PROMPT=${outputs.promptPath}`);
   console.log(`ANALYSIS_MODE=${analysisMode}`);
+  console.log(`SOURCE_MODE=${source.mode}`);
+  console.log(`SOURCE_DETAIL=${source.detail}`);
+  if (source.warning) console.log(`SOURCE_WARNING=${source.warning}`);
   console.log(`IMAGE_MODE=${actualImageMode}`);
   console.log(`IMAGE_TEXT_HAN=${digest.visualSummary.hanCount}`);
   console.log(`IMAGES_GENERATED=${digest.visualSummary.status === "generated" ? 1 : 0}`);

@@ -6,7 +6,7 @@
 2. 通俗易懂的中文解释稿；
 3. 一张带中文正文的知识信息图。
 
-项目以 Codex Skill 的形式工作。首次使用时，Skill 会先引导用户准备生图额度，再检测 Node.js、FFmpeg、Whisper、模型和抖音解析工具。发现缺失项后会先询问是否下载，全部检查通过后才提示发送抖音链接。
+项目以 Codex Skill 的形式工作。首次使用时，Skill 会先引导用户准备生图额度，再检测 Node.js、Edge/Chrome、Playwright、FFmpeg、Whisper 和模型。发现缺失项后会先询问是否下载，全部检查通过后才提示发送抖音链接。
 
 ## 安装
 
@@ -55,8 +55,8 @@ https://v.douyin.com/xxxxxxxx/
 
 默认输出顺序：
 
-1. 通俗解释稿；
-2. 一张中文知识信息图；
+1. 在回复中直接贴出完整通俗解释稿；
+2. 真正展示一张中文知识信息图；
 3. 原始转写和本地输出路径。
 
 逐字稿默认不会直接贴出，明确要求时才提供。
@@ -65,23 +65,34 @@ https://v.douyin.com/xxxxxxxx/
 
 ```text
 抖音链接
-  -> 下载音轨
+  -> Skill 专用浏览器会话获取视频媒体
   -> 本地 Whisper 转写
   -> Codex 整理通俗解释
   -> 压缩为 480-500 个汉字的视觉摘要
   -> 生成一张中文知识信息图
 ```
 
+浏览器会话使用 Skill 自己的配置目录，不读取个人 Edge/Chrome Cookie。媒体获取失败时会尝试旧版解析器；仍无法转写时，才降级使用抖音页面章节摘要，并明确标记为“非逐字转写”。
+
+输出中的 `SOURCE_MODE` 用于说明内容来源：
+
+- `audio-asr`：已获取视频媒体并完成 Whisper 转写；
+- `page-chapters`：仅取得抖音页面章节摘要；
+- `provided-media`：转写用户提供的本地视频或音频；
+- `provided-transcript`：使用用户已有转写稿。
+
 ## 环境
 
 - Windows x64
 - Node.js 18 或更高版本
+- Microsoft Edge 或 Google Chrome
+- `playwright-core`（由 `setup.ps1` 安装）
 - FFmpeg
 - whisper.cpp
 - Whisper `base` 模型
 - 兼容 OpenAI `POST /images/generations` 的生图接口
 
-`vendor/dyt.exe` 来自 [vangie/douyin-transcriber](https://github.com/vangie/douyin-transcriber)，许可证见 Skill 内的第三方声明。
+`vendor/dyt.exe` 来自 [vangie/douyin-transcriber](https://github.com/vangie/douyin-transcriber)，当前仅作为兼容后备。许可证见 Skill 内的第三方声明。
 
 ## 安全
 
@@ -92,7 +103,7 @@ https://v.douyin.com/xxxxxxxx/
 
 ## 已知限制
 
-抖音网页结构可能随时变化。页面发生变化时，音轨下载器可能暂时无法解析新链接，需要更新解析逻辑。解释稿不能冒充逐字转写；降级使用页面章节摘要时必须明确说明来源。
+抖音网页结构可能随时变化。Skill 会优先通过真实浏览器会话获取页面详情和媒体地址，但抖音风控升级后仍可能需要更新获取逻辑。解释稿不能冒充逐字转写；降级使用页面章节摘要时必须明确说明来源。
 
 ## 开发验证
 

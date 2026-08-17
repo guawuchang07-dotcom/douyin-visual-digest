@@ -9,6 +9,7 @@ $EnvPath = if ([string]::IsNullOrWhiteSpace($EnvFile)) { Join-Path $Root ".env" 
 $Whisper = Get-ChildItem -LiteralPath (Join-Path $Runtime "whisper") -Recurse -Filter "whisper-cli.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
 $Model = Join-Path $Runtime "models\ggml-$ModelName.bin"
 $Dyt = Join-Path $Root "vendor\dyt.exe"
+$PlaywrightCore = Join-Path $Root "node_modules\playwright-core"
 $envValues = @{}
 if (Test-Path -LiteralPath $EnvPath) {
     Get-Content -LiteralPath $EnvPath -Encoding UTF8 | ForEach-Object {
@@ -31,6 +32,15 @@ if ($nodeCommand) {
 }
 $ffmpegReady = [bool](Get-Command ffmpeg -ErrorAction SilentlyContinue)
 $dytReady = Test-Path -LiteralPath $Dyt
+$playwrightReady = Test-Path -LiteralPath $PlaywrightCore
+$browserCandidates = @(
+    $env:DOUYIN_BROWSER_PATH,
+    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    "C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+$browserReady = $browserCandidates.Count -gt 0
 $whisperReady = [bool]$Whisper
 $modelReady = Test-Path -LiteralPath $Model
 $imageApiReady = [bool]($imageBase -and $imageKey -and $imageModel)
@@ -38,7 +48,8 @@ $missingTools = @()
 if (-not $windowsX64) { $missingTools += 'Windows x64' }
 if (-not $node18Plus) { $missingTools += 'Node.js 18+' }
 if (-not $ffmpegReady) { $missingTools += 'FFmpeg' }
-if (-not $dytReady) { $missingTools += 'vendor/dyt.exe' }
+if (-not $browserReady) { $missingTools += 'Microsoft Edge or Google Chrome' }
+if (-not $playwrightReady) { $missingTools += 'playwright-core' }
 if (-not $whisperReady) { $missingTools += 'whisper-cli.exe' }
 if (-not $modelReady) { $missingTools += "Whisper $ModelName model" }
 $toolsReady = $missingTools.Count -eq 0
@@ -49,6 +60,8 @@ $ready = $toolsReady -and $imageApiReady
     Node18Plus = $node18Plus
     Ffmpeg = $ffmpegReady
     Dyt = $dytReady
+    Browser = $browserReady
+    PlaywrightCore = $playwrightReady
     Whisper = $whisperReady
     Model = $modelReady
     TextApi = [bool]($textBase -and $textKey -and $textModel)

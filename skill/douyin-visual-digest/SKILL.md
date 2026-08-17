@@ -40,7 +40,7 @@ description: 将抖音分享链接或已有转写稿转换为完整转写、通�
 - `IMAGE_API_READY=False`：返回阶段 1，不要处理视频。
 - `MISSING_TOOLS` 非空：逐项告诉用户缺少什么，并询问“是否现在下载并安装这些工具？”然后停止等待。
 - 未经用户明确同意，不要运行 `setup.ps1`、`winget` 或下载模型。
-- 用户同意后运行 `scripts/setup.ps1 -ModelName base`。Node.js 18+ 或完整仓库缺失时，按脚本提示让用户手动补齐。
+- 用户同意后运行 `scripts/setup.ps1 -ModelName base`。脚本会安装 `playwright-core`、FFmpeg、Whisper 和模型；浏览器只使用 Skill 专用配置目录，不读取个人浏览器 Cookie。
 - 安装结束后重新运行 `doctor.ps1`，不能根据下载命令成功就直接宣称准备完成。
 
 ### 阶段 3：确认就绪
@@ -53,11 +53,15 @@ description: 将抖音分享链接或已有转写稿转换为完整转写、通�
 
 ## 默认结果
 
-用户只需发送一次抖音分享链接。最终回复按这个顺序交付：
+用户只需发送一次抖音分享链接。最终回复必须**严格按下面顺序一次性交付**，不允许省略、颠倒或只给路径：
 
-1. 直接贴出完整的通俗解释稿，而不是只给文件路径。
-2. 在文字后显示一张中文知识信息图。
-3. 简短附上原始转写和输出目录的绝对路径，方便核对。
+1. **直接贴出完整通俗解释稿正文**（不是摘要、不是链接、不是"已生成见文件"）。Markdown 排版固定为：
+   - 一级标题：`<视频主题>：通俗解释稿`
+   - `## 这段视频到底在讲什么`：一段 overview
+   - `## 逐个讲明白`：每个关键点一个 `### 小标题`，正文为 explanation，末尾加 `**举个例子：**` + 具体例子
+   - `## 最后记住`：一句 takeaway
+2. **紧跟其后展示知识信息图**：优先调用平台的文件/图片展示能力；若聊天环境无法内嵌图片，必须先把图片复制到用户当前工作区根目录（命名 `knowledge-infographic.png`），再给出该绝对路径与打开方式。图片没展示成功就不算完成交付。
+3. **最后简短附上**原始转写与输出目录的绝对路径，方便核对。
 
 不要默认贴逐字稿；用户明确要求时再提供。解释稿不能冒充逐字稿。
 
@@ -82,6 +86,15 @@ description: 将抖音分享链接或已有转写稿转换为完整转写、通�
 ```
 
 读取终端中的 `TRANSCRIPT`。
+
+同时读取 `SOURCE_MODE`：
+
+- `audio-asr`：已通过专用浏览器取得媒体并完成 Whisper 转写，可作为完整机器转写使用。
+- `page-chapters`：媒体获取或转写失败，当前内容来自抖音页面章节摘要；必须明确标注“非逐字转写”，不能把它说成完整原稿。
+- `provided-media`：用户提供了本地视频或音频，已完成 Whisper 转写。
+- `provided-transcript`：用户直接提供了已有转写稿。
+
+获取顺序由脚本自动处理：专用无痕浏览器会话 -> 本地 Whisper -> 旧 `dyt.exe` 兼容后备 -> 页面章节摘要。不要默认读取个人 Edge/Chrome Cookie，也不要要求用户关闭浏览器或导出 Cookie。
 
 ### 2. 生成解释 JSON
 
@@ -125,12 +138,34 @@ description: 将抖音分享链接或已有转写稿转换为完整转写、通�
 
 回复中先读取并贴出 `PLAIN_LANGUAGE` 正文，再用 `INFOGRAPHIC` 的绝对路径显示图片。明确说明实际 `IMAGE_TEXT_HAN` 和 `IMAGES_GENERATED=1`。
 
+## 图片展示策略（多环境适配）
+
+知识图是必交付物，必须让用户真正看到，不同环境方式不同：
+
+- **支持文件卡片/附件的客户端**（如 WorkBuddy 的 present_files、支持图片内嵌的界面）：调用展示工具，同时仍给出图片绝对路径。
+- **终端型聊天不渲染图片的客户端**（如纯 CLI）：把 `knowledge-infographic.png` 复制到用户当前工作区根目录，回复给出绝对路径并说明打开方式（如双击/`Start-Process`）。
+- **兜底**：无论哪种环境，回复中都必须包含图片绝对路径。不要把图片路径藏在 Markdown 图片语法里假装已展示——用户看不到就算未交付。
+
+## 交付自查清单（每次回复前逐项核对）
+
+- [ ] 通俗解释稿完整正文已直接贴出（含 overview / 各关键点+例子 / takeaway）
+- [ ] 知识图已展示：要么平台内嵌成功，要么已复制到工作区根目录并给出可打开路径
+- [ ] `TRANSCRIPT` 与 `OUTPUT_DIR` 绝对路径已附上
+- [ ] 已注明 `IMAGE_TEXT_HAN` 与 `IMAGES_GENERATED=1`
+- [ ] 未在回复中粘贴 API Key 或密钥
+
 ## 其他入口
 
 已有转写稿：
 
 ```powershell
 & "$PSScriptRoot\scripts\run-douyin-visual-digest.ps1" -Transcript "<转写文件>" -AnalysisFile "<解释 JSON>"
+```
+
+本地视频或音频：
+
+```powershell
+& "$PSScriptRoot\scripts\run-douyin-visual-digest.ps1" -MediaFile "<本地媒体文件>" -TranscriptOnly
 ```
 
 只测试接口：
