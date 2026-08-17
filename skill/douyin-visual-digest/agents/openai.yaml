@@ -1,0 +1,4 @@
+interface:
+  display_name: "抖音通俗图解"
+  short_description: "首次引导配置后，把抖音链接变成中文图解"
+  default_prompt: "使用 $douyin-visual-digest；首次使用时先引导准备生图额度并检查本地工具，就绪后再处理抖音链接。"

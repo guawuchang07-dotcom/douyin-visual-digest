@@ -1,0 +1,16 @@
+{
+  "name": "douyin-visual-digest",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn a Douyin link into a transcript, a plain-language explanation, and one Chinese knowledge infographic.",
+  "scripts": {
+    "check": "node --check scripts/douyin-visual-digest.mjs && node --check tests/pipeline.test.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "digest": "node scripts/douyin-visual-digest.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
