@@ -6,7 +6,7 @@
   "description": "Turn a Douyin link into a transcript, a plain-language explanation, and one Chinese knowledge infographic.",
   "scripts": {
     "check": "node --check scripts/douyin-visual-digest.mjs && node --check tests/pipeline.test.mjs",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/pipeline.test.mjs",
     "digest": "node scripts/douyin-visual-digest.mjs"
   },
   "engines": {
