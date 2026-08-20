@@ -9,13 +9,9 @@
 主要入口：**WorkBuddy 电脑端与微信小程序**<br>
 备用入口：**Codex Skill**
 
-【状态标签待补充：WorkBuddy｜抖音链接｜中文解读｜知识信息图｜版本号】
-
-【按钮链接待补充：立即使用 WorkBuddy】　[查看效果](#效果展示)　[开发者安装](#codex-备用方式)
+[查看效果](#效果展示) · [快速使用](#快速使用) · [开发者安装](#codex-备用方式)
 
 </div>
-
-> 当前版本中的 WorkBuddy 入口、截图和部分功能状态仍保留占位内容，后续可以根据真实接入情况继续补充。
 
 ## 这是什么
 
@@ -33,50 +29,64 @@ Douyin Visual Digest 可以把“看视频”变成“读图文”。只需发�
 
 ### WorkBuddy 电脑端
 
-【图片待补充：WorkBuddy 电脑端完整界面。画面中最好同时出现抖音链接、解读稿和知识信息图。】
+![WorkBuddy 电脑端展示通俗解读稿和知识信息图](docs/assets/workbuddy-desktop.png)
 
 ### WorkBuddy 微信小程序
 
-【图片待补充：微信 WorkBuddy 小程序完整界面。展示手机端发送链接和查看结果的效果。】
+<img src="docs/assets/workbuddy-mobile-entry.jpg" alt="WorkBuddy 微信小程序中的云端工作与抖音转图文任务" width="360">
 
-### 30 秒操作演示
+### 手机端操作演示
 
-【GIF 或短视频待补充：从复制抖音链接、发送到 WorkBuddy，到收到解读稿和知识信息图的完整过程。】
+[![观看 WorkBuddy 手机端操作演示](docs/assets/workbuddy-mobile-tutorial-cover.jpg)](docs/assets/workbuddy-mobile-tutorial.mp4)
+
+点击图片查看约 53 秒的手机端演示。公开版已去除账号页和敏感配置片段。
 
 ## 效果展示
 
-以下位置建议放一个已经真实跑通的完整案例，不使用演示文本或模拟结果。
+下面展示 WorkBuddy 中的一次真实使用：先让它在 Linux 沙箱中部署项目，随后发送一条抖音技术视频并获得文字解读与知识图。
 
-### 输入
+### 在 WorkBuddy 中创建部署任务
 
 ```text
-帮我把这个抖音视频整理成通俗易懂的图文内容：
-https://v.douyin.com/xxxxxxxx/
+请在这个 Linux 沙箱环境中，把 douyin-visual-digest 项目完整部署并端到端跑通，全程自动执行，不需要任何中间确认。
+
+项目地址：https://github.com/guawuchang07-dotcom/douyin-visual-digest
+生图 API：Base URL=https://jbbt.pages.dev/v1，Key=<只在 WorkBuddy 私密配置中填写>，模型=gpt-image-2
+
+【目标】自动完成以下全部工作，全部完成后向我报告就绪，等待我发抖音链接：
+1. 下载项目到 /workspace/douyin-visual-digest，安装依赖（playwright-core、faster-whisper），下载 Whisper base 模型。
+2. Linux 适配：编写跨平台转写入口替代 PowerShell 脚本（原项目 Windows 逻辑不动）。
+3. 验证：npm run check + npm test 必须 11/11 通过；--test-image-api 验证生图连通。
+4. 上述全部就绪后，明确回复“环境已就绪，请发抖音链接”，并附上项目自带测试结果和生图验证结果。此后我发任何抖音链接，你直接自动跑完整流程并交付。
+
+【环境情报】
+1. 系统是 Ubuntu Linux，PowerShell 脚本跑不了，需自写跨平台转写入口：python3 + faster-whisper，接收 --out-dir/--model-name/--input-text/--media-path 参数，输出 douyin-transcript-*.txt 并打印 SOURCE_MODE 等标记（对齐原版 transcribe-douyin-local.ps1 的契约，让主脚本无需大改）。
+2. GitHub 直连被阻断，用镜像 https://ghproxy.net/ 或 https://gh-proxy.com/ 前缀下载。
+3. HuggingFace 及 hf-mirror 均不可达，Whisper 模型从 ModelScope 下载：gpustack/faster-whisper-base（CTranslate2 格式），文件 URL https://modelscope.cn/models/gpustack/faster-whisper-base/resolve/master/{model.bin,config.json,tokenizer.json,vocabulary.txt}，curl 必须加 -L 跟随重定向，存到 ~/.cache/whisper-models/faster-whisper-base/。
+4. Python 用 pyenv 的 python3（3.11），装包用 python3 -m pip install；不要用 sudo pip。
+5. Chrome 在 /usr/bin/chromium，Playwright 取视频时设置环境变量 DOUYIN_BROWSER_PATH=/usr/bin/chromium；playwright-core 需 cd 进 skill 目录 npm install。
+6. 生图 API 配置写入 skill 目录 .env，chmod 600；.env 已被 gitignore 覆盖。密钥不得出现在回复、日志或任何提交中。
+7. 若 /workspace/douyin-visual-digest 已存在，先检查复用，不要重复下载。
+
+【验收 checklist】
+□ npm test 11/11 通过
+□ 转写脚本能输出 douyin-transcript-*.txt 并打印 SOURCE_MODE
+□ 生图 API 连通（--test-image-api 成功出图）
+□ API Key 未出现在任何回复与文件中
+□ 未跳过任何步骤就宣称就绪
 ```
 
-【图片待补充：原抖音视频封面或分享页面截图。注意遮挡账号隐私信息。】
+> 示例中的 API Key 已脱敏。请仅通过 WorkBuddy 的私密配置保存自己的密钥，不要将真实密钥粘贴进对话、截图或 GitHub。
 
 ### 输出一：通俗解读稿
 
-【图片待补充：WorkBuddy 返回完整解读稿的截图，保证文字能够看清。】
+![WorkBuddy 生成的 GraphRAG 通俗解读稿](docs/assets/workbuddy-explanation.jpg)
 
 ### 输出二：中文知识信息图
 
-【图片待补充：最终生成的中文知识信息图，建议直接展示原图。】
+![WorkBuddy 生成的 GraphRAG 中文知识信息图](docs/assets/workbuddy-infographic.jpg)
 
-### 处理前后对比
-
-【图片待补充：左侧为原视频，右侧为通俗解读稿和知识信息图。用于一眼说明项目价值。】
-
-真实案例信息可以写成：
-
-```text
-原始输入：一条关于 Agent 的抖音教学视频
-视频时长：【待填写】
-处理时间：【待填写】
-最终得到：通俗解读稿 + 中文知识信息图 + 原始转写稿
-内容来源：【audio-asr / page-chapters / provided-media】
-```
+这个示例将一条讲解 GraphRAG 的技术视频整理成完整易读的解释稿，并生成一张可保存、可转发的中文知识信息图。
 
 ## 核心功能
 
@@ -88,12 +98,9 @@ https://v.douyin.com/xxxxxxxx/
 - [x] 支持用户提供本地视频、音频或已有转写稿；
 - [x] 标记内容来源，区分语音转写和页面摘要；
 - [x] API Key 不写入 GitHub 仓库；
-- [ ] 【根据真实测试修改】WorkBuddy 电脑端稳定运行；
-- [ ] 【根据真实测试修改】WorkBuddy 微信小程序云端运行；
+- [x] WorkBuddy 电脑端和微信小程序已提供实际流程演示；
 - [ ] 【规划功能】历史任务和结果收藏；
 - [ ] 【规划功能】视频获取失败后自动重试或上传本地视频。
-
-> 发布前请把已经真实验证的 WorkBuddy 功能改为 `[x]`，没有验证的功能继续保留为 `[ ]`。
 
 ## 快速使用
 
@@ -105,13 +112,9 @@ https://v.douyin.com/xxxxxxxx/
 
 在 WorkBuddy 中搜索、导入或启用 Douyin Visual Digest。
 
-【图片待补充：WorkBuddy 中搜索或导入 Skill 的页面。】
-
 #### 第二步：完成首次配置
 
 按照 WorkBuddy 的中文引导准备生图服务，等待页面显示“准备完成”。
-
-【图片待补充：首次配置的步骤页面，包含生图额度、API 配置、服务检查和准备完成。】
 
 #### 第三步：发送抖音链接
 
@@ -122,8 +125,6 @@ https://v.douyin.com/xxxxxxxx/
 ```
 
 WorkBuddy 会返回通俗解读稿和知识信息图，并保留可按需查看的原始转写稿。
-
-【图片待补充：发送链接、处理中和最终结果三张连续截图，或合并成一张流程长图。】
 
 ## 手机端体验
 
@@ -140,8 +141,6 @@ WorkBuddy 会返回通俗解读稿和知识信息图，并保留可按需查看�
 
 手机端的目标是让普通用户不需要安装 Node.js、FFmpeg 或 Whisper。视频获取、语音识别、文字整理和生图任务由云端完成。
 
-【图片待补充：一张手机操作流程长图，建议包含复制链接、发送、处理中、结果展示四个画面。】
-
 ## 首次配置
 
 最终的知识信息图需要调用兼容 OpenAI 图片生成接口的生图服务。
@@ -157,8 +156,6 @@ WorkBuddy 会返回通俗解读稿和知识信息图，并保留可按需查看�
 > 生图服务链接可能为项目作者带来推广收益。
 
 API Key 不应该直接发送到聊天消息、GitHub Issue、截图或公开文件中。WorkBuddy 云端版本需要使用安全的密钥管理和用户隔离机制。
-
-【图片待补充：生图服务注册、创建 API Key 和 WorkBuddy 安全配置入口。截图中必须隐藏真实 API Key。】
 
 ## 工作流程
 
@@ -179,8 +176,6 @@ API Key 不应该直接发送到聊天消息、GitHub Issue、截图或公开文
 - `page-chapters`：仅取得抖音页面章节摘要，不是逐字稿；
 - `provided-media`：转写用户提供的视频或音频；
 - `provided-transcript`：使用用户提供的已有转写稿。
-
-【图片待补充：WorkBuddy 电脑端/手机端、云端处理服务、Whisper 和生图 API 的简化架构图。】
 
 ## Codex 备用方式
 
@@ -213,11 +208,11 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 | 使用入口 | 定位 | 状态 |
 | --- | --- | --- |
-| WorkBuddy 电脑端 | 普通用户主要入口 | 【请填写：已支持 / 测试中】 |
-| WorkBuddy 微信小程序 | 手机端主要入口 | 【请填写：已支持 / 适配中】 |
+| WorkBuddy 电脑端 | 普通用户主要入口 | 已提供演示 |
+| WorkBuddy 微信小程序 | 手机端主要入口 | 已提供演示 |
 | Codex Skill | 开发、调试和备用入口 | 已支持 |
 
-正式发布前，需要用真实抖音视频分别验证 WorkBuddy 电脑端和微信小程序端，再更新上表。
+WorkBuddy 的可用入口和云端资源配置以实际产品状态为准。
 
 ## 已知限制
 
@@ -272,15 +267,3 @@ GitHub：<https://github.com/guawuchang07-dotcom/douyin-visual-digest>
 ## License
 
 [MIT](LICENSE)
-
-## 发布前还需要补充
-
-- [ ] WorkBuddy 的真实使用入口或二维码；
-- [ ] WorkBuddy 电脑端完整截图；
-- [ ] WorkBuddy 微信小程序完整截图；
-- [ ] 一段从复制链接到生成结果的 GIF 或短视频；
-- [ ] 一个真实抖音视频的完整输出案例；
-- [ ] 一张最终中文知识信息图原图；
-- [ ] WorkBuddy 电脑端和微信小程序端的真实测试状态；
-- [ ] 项目版本号和状态标签；
-- [ ] 必要时增加英文 README。
